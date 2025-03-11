@@ -1,6 +1,9 @@
 import express from "express";
 import morgan from "morgan";
 import cors from "cors";
+import { connectToDatabase } from "./config/db.js";
+import sequelize from "./config/db.js";
+import Contact from "./models/contact.js";
 
 import contactsRouter from "./routes/contactsRouter.js";
 
@@ -21,6 +24,23 @@ app.use((err, req, res, next) => {
   res.status(status).json({ message });
 });
 
-app.listen(3000, () => {
-  console.log("Server is running. Use our API on port: 3000");
-});
+// Initialize database and start server
+const startServer = async () => {
+  try {
+    // Connect to the database
+    await connectToDatabase();
+
+    // Sync models with database (create tables if they don't exist)
+    await sequelize.sync();
+
+    // Start the Express server
+    app.listen(3000, () => {
+      console.log("Server is running. Use our API on port: 3000");
+    });
+  } catch (error) {
+    console.error("Failed to start server:", error);
+    process.exit(1);
+  }
+};
+
+startServer();
