@@ -4,7 +4,15 @@ import HttpError from "../helpers/HttpError.js";
 // GET /api/contacts
 export const getAllContacts = async (req, res, next) => {
   try {
-    const contacts = await contactsService.listContacts();
+    const { page = 1, limit = 20, favorite } = req.query;
+    const skip = (page - 1) * limit;
+    
+    const filter = { owner: req.user.id };
+    if (favorite !== undefined) {
+      filter.favorite = favorite === 'true';
+    }
+    
+    const contacts = await contactsService.listContacts(filter, skip, limit);
     res.json(contacts);
   } catch (error) {
     next(error);
@@ -14,7 +22,7 @@ export const getAllContacts = async (req, res, next) => {
 // GET /api/contacts/:id
 export const getOneContact = async (req, res, next) => {
   try {
-    const contact = await contactsService.getContactById(req.params.id);
+    const contact = await contactsService.getContactById(req.params.id, req.user.id);
 
     if (!contact) {
       return next(HttpError(404, "Not found"));
@@ -29,7 +37,7 @@ export const getOneContact = async (req, res, next) => {
 // DELETE /api/contacts/:id
 export const deleteContact = async (req, res, next) => {
   try {
-    const contact = await contactsService.removeContact(req.params.id);
+    const contact = await contactsService.removeContact(req.params.id, req.user.id);
 
     if (!contact) {
       return next(HttpError(404, "Not found"));
@@ -49,7 +57,8 @@ export const createContact = async (req, res, next) => {
       name,
       email,
       phone,
-      favorite
+      favorite,
+      req.user.id
     );
 
     res.status(201).json(contact);
@@ -63,7 +72,8 @@ export const updateContact = async (req, res, next) => {
   try {
     const contact = await contactsService.updateContact(
       req.params.id,
-      req.body
+      req.body,
+      req.user.id
     );
 
     if (!contact) {
@@ -81,7 +91,8 @@ export const updateFavoriteStatus = async (req, res, next) => {
   try {
     const contact = await contactsService.updateStatusContact(
       req.params.id,
-      req.body
+      req.body,
+      req.user.id
     );
 
     if (!contact) {
