@@ -3,9 +3,9 @@ import morgan from "morgan";
 import cors from "cors";
 import { connectToDatabase } from "./config/db.js";
 import sequelize from "./config/db.js";
-import Contact from "./models/contact.js";
 
 import contactsRouter from "./routes/contactsRouter.js";
+import authRouter from "./routes/authRouter.js";
 
 const app = express();
 
@@ -13,6 +13,7 @@ app.use(morgan("tiny"));
 app.use(cors());
 app.use(express.json());
 
+app.use("/api/auth", authRouter);
 app.use("/api/contacts", contactsRouter);
 
 app.use((_, res) => {
