@@ -1,7 +1,16 @@
+// controllers/authControllers.js
+
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import gravatar from "gravatar";
+import fs from "fs/promises";
+import path from "path";
+import { fileURLToPath } from "url";
 import User from "../models/user.js";
 import HttpError from "../helpers/HttpError.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const { JWT_SECRET } = process.env;
 
@@ -16,6 +25,13 @@ export const register = async (req, res, next) => {
       return next(HttpError(409, "Email in use"));
     }
 
+    // Generate Gravatar URL
+    const avatarURL = gravatar.url(email, {
+      s: "250",
+      r: "pg",
+      d: "identicon",
+    });
+
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
@@ -23,12 +39,14 @@ export const register = async (req, res, next) => {
     const newUser = await User.create({
       email,
       password: hashedPassword,
+      avatarURL: avatarURL,
     });
 
     res.status(201).json({
       user: {
         email: newUser.email,
         subscription: newUser.subscription,
+        avatarURL: newUser.avatarURL,
       },
     });
   } catch (error) {
@@ -38,7 +56,6 @@ export const register = async (req, res, next) => {
 
 // POST /api/auth/login
 export const login = async (req, res, next) => {
-  console.log("logging in");
   try {
     const { email, password } = req.body;
 
@@ -61,10 +78,10 @@ export const login = async (req, res, next) => {
       user: {
         email: user.email,
         subscription: user.subscription,
+        avatarURL: user.avatarURL,
       },
     });
   } catch (error) {
-    console.log(error);
     next(error);
   }
 };
@@ -81,11 +98,12 @@ export const logout = async (req, res, next) => {
 
 // GET /api/auth/current
 export const getCurrent = async (req, res) => {
-  const { email, subscription } = req.user;
+  const { email, subscription, avatarURL } = req.user;
 
   res.json({
     email,
     subscription,
+    avatarURL,
   });
 };
 
@@ -99,8 +117,49 @@ export const updateSubscription = async (req, res, next) => {
     res.json({
       email: req.user.email,
       subscription,
+      avatarURL: req.user.avatarURL,
     });
   } catch (error) {
+    next(error);
+  }
+};
+
+// PATCH /api/auth/avatars
+export const updateAvatar = async (req, res, next) => {
+  try {
+    const { id } = req.user;
+    const { path: tempPath, originalname } = req.file;
+
+    // Create directories if they don't exist
+    const publicDir = path.join(__dirname, "../public");
+    const avatarsDir = path.join(publicDir, "avatars");
+
+    await fs.mkdir(publicDir, { recursive: true });
+    await fs.mkdir(avatarsDir, { recursive: true });
+
+    // Generate unique filename using user id and original extension
+    const extension = originalname.split(".").pop();
+    const filename = `${id}-${Date.now()}.${extension}`;
+    const avatarPath = path.join(avatarsDir, filename);
+
+    // Move file from temp directory to public/avatars
+    await fs.rename(tempPath, avatarPath);
+
+    // Create relative URL for the avatar
+    const avatarURL = `/avatars/${filename}`;
+
+    // Update user with new avatar URL
+    await req.user.update({ avatarURL });
+
+    res.json({
+      avatarURL,
+    });
+  } catch (error) {
+    // Clean up temp file if it exists
+    if (req.file) {
+      await fs.unlink(req.file.path).catch(console.error);
+    }
+
     next(error);
   }
 };

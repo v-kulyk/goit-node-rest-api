@@ -1,3 +1,5 @@
+// models/user.js
+
 import { DataTypes } from "sequelize";
 import sequelize from "../config/db.js";
 
@@ -23,6 +25,10 @@ const User = sequelize.define(
       defaultValue: "starter",
     },
     token: {
+      type: DataTypes.STRING,
+      defaultValue: null,
+    },
+    avatarURL: {
       type: DataTypes.STRING,
       defaultValue: null,
     },

@@ -1,3 +1,5 @@
+// routes/authRouter.js
+
 import express from "express";
 import {
   register,
@@ -5,8 +7,10 @@ import {
   logout,
   getCurrent,
   updateSubscription,
+  updateAvatar,
 } from "../controllers/authControllers.js";
 import authenticate from "../middleware/authenticate.js";
+import upload from "../middleware/upload.js";
 import validateBody from "../helpers/validateBody.js";
 import {
   registerSchema,
@@ -30,6 +34,14 @@ authRouter.patch(
   authenticate,
   validateBody(subscriptionSchema),
   updateSubscription
+);
+
+// Avatar upload route
+authRouter.patch(
+  "/avatars",
+  authenticate,
+  upload.single("avatar"),
+  updateAvatar
 );
 
 export default authRouter;
