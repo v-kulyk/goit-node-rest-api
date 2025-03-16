@@ -73,7 +73,7 @@ export const login = async (req, res, next) => {
     // Update user with token
     await user.update({ token });
 
-    res.json({
+    res.status(200).json({
       token,
       user: {
         email: user.email,

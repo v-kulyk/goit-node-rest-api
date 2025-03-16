@@ -1,5 +1,3 @@
-// models/user.js
-
 import { DataTypes } from "sequelize";
 import sequelize from "../config/db.js";
 

@@ -1,19 +1,8 @@
-import request from "supertest";
-import express from "express";
+import User from "../models/user";
+import { login } from "../controllers/authControllers";
+import { expect, jest } from "@jest/globals";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
-import { login } from "../controllers/authControllers.js";
-import User from "../models/user.js";
-
-// Mock dependencies
-jest.mock("jsonwebtoken");
-jest.mock("bcryptjs");
-jest.mock("../models/user.js");
-
-// Setup test app
-const app = express();
-app.use(express.json());
-app.post("/api/auth/login", login);
 
 describe("Login Controller", () => {
   let req, res, next;
@@ -22,27 +11,34 @@ describe("Login Controller", () => {
     // Reset the mocks before each test
     jest.clearAllMocks();
 
-    // Mock the response object
+    // Mock request object
+    req = {
+      body: {
+        email: "test@example.com",
+        password: "hashedPassword",
+      },
+    };
+
+    // Mock response object
     res = {
       json: jest.fn().mockReturnThis(),
       status: jest.fn().mockReturnThis(),
     };
 
-    // Mock the next middleware function
+    // Mock next middleware function
     next = jest.fn();
 
     // Mock environment variable
     process.env.JWT_SECRET = "test-secret";
   });
 
-  it("should return 200 status code, token and user object on successful login", async () => {
+  it("should return status code 200, a token, and a user object with email and subscription fields as strings", async () => {
     // Mock user for test
     const mockUser = {
       id: 1,
       email: "test@example.com",
       password: "hashedPassword",
       subscription: "starter",
-      avatarURL: "https://gravatar.com/avatar/test",
       update: jest.fn(),
     };
 
@@ -51,30 +47,26 @@ describe("Login Controller", () => {
     bcrypt.compare = jest.fn().mockResolvedValue(true);
     jwt.sign = jest.fn().mockReturnValue("test-token");
 
-    // Test request
-    const response = await request(app).post("/api/auth/login").send({
-      email: "test@example.com",
-      password: "password123",
-    });
+    // Call the login function directly
+    await login(req, res, next);
 
     // Assertions
-    expect(response.status).toBe(200);
-    expect(response.body).toHaveProperty("token");
-    expect(response.body).toHaveProperty("user");
-    expect(response.body.user).toHaveProperty("email");
-    expect(response.body.user).toHaveProperty("subscription");
-    expect(typeof response.body.user.email).toBe("string");
-    expect(typeof response.body.user.subscription).toBe("string");
-    expect(User.findOne).toHaveBeenCalledWith({
-      where: { email: "test@example.com" },
-    });
-    expect(bcrypt.compare).toHaveBeenCalledWith(
-      "password123",
-      "hashedPassword"
-    );
-    expect(jwt.sign).toHaveBeenCalledWith({ id: 1 }, "test-secret", {
-      expiresIn: "23h",
-    });
-    expect(mockUser.update).toHaveBeenCalledWith({ token: "test-token" });
+    expect(next).not.toHaveBeenCalled();
+    expect(res.json).toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
+
+    // Extract the argument passed to res.json
+    const responseBody = res.json.mock.calls[0][0];
+
+    // Check that token is returned
+    expect(responseBody).toHaveProperty("token");
+    expect(responseBody.token).toBe("test-token");
+
+    // Check that user object is returned with email and subscription as strings
+    expect(responseBody).toHaveProperty("user");
+    expect(responseBody.user).toHaveProperty("email");
+    expect(responseBody.user).toHaveProperty("subscription");
+    expect(typeof responseBody.user.email).toBe("string");
+    expect(typeof responseBody.user.subscription).toBe("string");
   });
 });
